@@ -1,9 +1,7 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - '*.*.*'
+  workflow_dispatch:
 
 jobs:
   release:
@@ -21,23 +19,16 @@ jobs:
       - name: Dump PG db
         run: docker compose exec -T -u postgres db sh -c "cd /tmp && pg_dump -h localhost -Fc -U ash -N 'hdb_*' pokeapi > pokeapi.pgdump"
       - name: Copy PG dump
-        run: |
-          docker compose cp db:/tmp/pokeapi.pgdump ./
-          ls -larth
-      - name: Start pokeapi
-        run: |
-          make install
-          make migrate
-          make build-db
-          nohup make serve &
-          sleep 3
-      - name: Release
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
-        if: startsWith(github.ref, 'refs/tags/')
+        run: docker compose cp db:/tmp/pokeapi.pgdump ./
+      - name: Upload PG dump as artifact
+        uses: actions/upload-artifact@v3
         with:
-          draft: true
-          fail_on_unmatched_files: true
-          files: |
-            pokeapi.pgdump
-            db.sqlite3
-          generate_release_notes: true
+          name: pokeapi-pgdump
+          path: pokeapi.pgdump
+      - name: Dump SQLite db
+        run: cp db.sqlite3 ./
+      - name: Upload SQLite dump as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: db-sqlite3
+          path: db.sqlite3
